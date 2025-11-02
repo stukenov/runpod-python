@@ -15,8 +15,9 @@ RUN apt-get update --yes && \
         wget \
         bash \
         openssh-server \
-        software-properties-common 
-        git && \
+        software-properties-common \
+        git \
+        build-essential && \
     add-apt-repository -y ppa:deadsnakes/ppa && \
     apt-get update --yes && \
     apt-get install --yes --no-install-recommends python3.10 python3-pip && \
