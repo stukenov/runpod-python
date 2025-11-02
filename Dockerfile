@@ -5,7 +5,7 @@ ARG MODEL_URL
 ENV MODEL_URL=${MODEL_URL}
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-ENV DEBIAN_FRONTEND noninteractive\
+ENV DEBIAN_FRONTEND=noninteractive \
     SHELL=/bin/bash
 
 RUN apt-key del 7fa2af80
@@ -17,10 +17,9 @@ RUN apt-get update --yes && \
         openssh-server \
         software-properties-common \
         git \
-        build-essential && \
-    add-apt-repository -y ppa:deadsnakes/ppa && \
-    apt-get update --yes && \
-    apt-get install --yes --no-install-recommends python3.10 python3-pip && \
+        build-essential \
+        python3 \
+        python3-pip && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN ln -sf /usr/bin/python3 /usr/bin/python
@@ -30,4 +29,4 @@ WORKDIR /app
 COPY . /app
 RUN pip3 install -e .
 
-CMD python3 -u /app/my_worker.py
+CMD ["python3", "-u", "/app/my_worker.py"]
