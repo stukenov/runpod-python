@@ -1,24 +1,9 @@
-ARG BASE_IMAGE=nvidia/cuda:11.6.2-cudnn8-devel-ubuntu20.04
-FROM ${BASE_IMAGE} as dev-base
+ARG BASE_IMAGE=python:3.10-slim
+FROM ${BASE_IMAGE}
 
-ARG MODEL_URL
-ENV MODEL_URL=${MODEL_URL}
-
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-ENV DEBIAN_FRONTEND noninteractive\
-    SHELL=/bin/bash
-
-RUN apt-key del 7fa2af80
-RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
 RUN apt-get update --yes && \
     apt-get install --yes --no-install-recommends \
-        wget \
-        bash \
-        openssh-server \
-        software-properties-common && \
-    add-apt-repository -y ppa:deadsnakes/ppa && \
-    apt-get update --yes && \
-    apt-get install --yes --no-install-recommends python3.10 python3-pip && \
+        python3-pip && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
