@@ -1,5 +1,4 @@
-ARG BASE_IMAGE=python:3.10-slim
-FROM ${BASE_IMAGE}
+FROM python:3.10-slim
 
 RUN apt-get update --yes && \
     apt-get install --yes --no-install-recommends \
