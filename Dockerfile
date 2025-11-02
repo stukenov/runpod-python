@@ -27,6 +27,6 @@ RUN ln -sf /usr/bin/python3 /usr/bin/python
 WORKDIR /app
 
 COPY . /app
-RUN pip3 install -e .
+RUN pip3 install -r /app/requirements.txt
 
 CMD ["python3", "-u", "/app/my_worker.py"]
