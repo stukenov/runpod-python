@@ -1,36 +1,27 @@
 # my_worker.py
 import runpod
-import torch
-import clip
+from clip_photo_filter import ClipPhotoFilter
+import urllib.request
+from urllib.error import URLError, HTTPError
 
-# Инициализируем вне хендлера (рекомендация RunPod)
-torch_version = torch.__version__
-clip_models = list(clip.available_models())
 
-model, preprocess = clip.load("ViT-B/32", device="cuda" if torch.cuda.is_available() else "cpu")
-model.eval()
+def photo_filter(job):
+    photo_url = job["input"].get("photo_url")
+    if not photo_url:
+        return {"output": {"error": "Photo URL is required"}}
 
-info = {
-    "input_resolution": getattr(model.visual, "input_resolution", None),
-    "context_length": getattr(model, "context_length", None),
-    "vocab_size": getattr(model, "vocab_size", None),
-}
+    try:
+        # Download the image from the internet and pass bytes to the filter
+        request = urllib.request.Request(photo_url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(request, timeout=20) as response:
+            image_bytes = response.read()
 
-def is_even(job):
-    n = job["input"].get("number")
-    if not isinstance(n, int):
-        return {"error": "Silly human, you need to pass an integer."}
+        clf = ClipPhotoFilter()
+        is_allowed = clf.is_allowed(image_bytes, threshold=0.55)
+        return {"output": {"is_allowed": is_allowed}}
+    except (HTTPError, URLError) as e:
+        return {"output": {"error": f"Download failed: {e}"}}
+    except Exception as e:
+        return {"output": {"error": str(e)}}
 
-    parity = "even" if n % 2 == 0 else "odd"
-
-    # Возвращаем СТРУКТУРИРОВАННЫЙ ответ + под ключом 'output' для совместимости
-    return {
-        "output": {
-            "parity": parity,
-            "torch_version": torch_version,
-            "clip_models": clip_models,         # список, не длинная строка
-            "model_info": info                  # без \n, чистый JSON
-        }
-    }
-
-runpod.serverless.start({"handler": is_even})
+runpod.serverless.start({"handler": photo_filter})

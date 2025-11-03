@@ -1,4 +1,8 @@
 runpod
+numpy
+pillow
+torch
+torchvision
 ftfy
 regex
 tqdm
