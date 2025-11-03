@@ -1,7 +1,7 @@
 # Зависимости:
 # pip install torch torchvision ftfy regex tqdm
 # pip install git+https://github.com/openai/CLIP.git
-from typing import Union, Optional, Sequence, Dict, Any
+from typing import Union, Optional, Sequence, Dict
 import io
 import numpy as np
 from PIL import Image
