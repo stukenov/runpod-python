@@ -1,6 +1,6 @@
 runpod
 numpy
-pillow
+Pillow
 torch
 torchvision
 ftfy
