@@ -10,7 +10,7 @@ import json
 import argparse
 import urllib.request
 from urllib.error import URLError, HTTPError
-from typing import Optional
+from typing import Optional, Dict, Any
 from PIL import Image, ImageFile
 
 # доп. устойчивость к "битым" изображениям
@@ -36,7 +36,21 @@ def _download_or_open(image_ref: str) -> bytes:
         return f.read()
 
 
-def _analyze_bytes(image_bytes: bytes, threshold: float = 0.55, simple: bool = False):
+def _download_json(url: str) -> Dict[str, Any]:
+    """Загружает JSON по URL."""
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        data = r.read()
+        return json.loads(data.decode('utf-8'))
+
+
+def _analyze_bytes(
+    image_bytes: bytes,
+    threshold: float = 0.55,
+    simple: bool = False,
+    unwanted_prompts: Optional[list] = None,
+    allowed_prompts: Optional[list] = None
+):
     """Общий анализ. simple=True — «попроще» режим для CLI."""
     # размер картинки (для отчёта)
     try:
@@ -46,7 +60,10 @@ def _analyze_bytes(image_bytes: bytes, threshold: float = 0.55, simple: bool = F
         width = height = None
 
     # В обоих режимах используем один и тот же фильтр, но CLI держим максимально простым
-    clf = ClipPhotoFilter()
+    clf = ClipPhotoFilter(
+        unwanted_prompts=unwanted_prompts,
+        allowed_prompts=allowed_prompts
+    )
 
     # В «простом» режиме только is_allowed; в расширенном можно добавить score при желании
     is_allowed = clf.is_allowed(image_bytes, threshold=threshold)
@@ -71,17 +88,43 @@ def _analyze_bytes(image_bytes: bytes, threshold: float = 0.55, simple: bool = F
 # ------------------ RunPod handler ------------------
 
 def photo_filter(job):
-    """RunPod Serverless handler: ожидает {"input": {"photo_url": "..."}}."""
+    """RunPod Serverless handler: ожидает {"input": {"photo_url": "...", "blacklist_url": "..."}}."""
     photo_url = job.get("input", {}).get("photo_url")
+    blacklist_url = job.get("input", {}).get("blacklist_url")
     threshold = job.get("input", {}).get("threshold", 0.55)
+
     if not photo_url:
         return {"output": {"error": "Photo URL is required"}}
 
     try:
+        # Загружаем изображение
         image_bytes = _download_or_open(photo_url)
-        result = _analyze_bytes(image_bytes, threshold=threshold, simple=False)
+
+        # Загружаем blacklist если указан URL
+        unwanted_prompts = None
+        allowed_prompts = None
+
+        if blacklist_url:
+            try:
+                blacklist_data = _download_json(blacklist_url)
+                unwanted_prompts = blacklist_data.get("unwanted")
+                allowed_prompts = blacklist_data.get("allowed")
+            except Exception as bl_err:
+                # Если не удалось загрузить blacklist, используем дефолтные значения
+                print(f"Warning: Failed to load blacklist from {blacklist_url}: {bl_err}")
+                print("Using default blacklist values")
+
+        # Анализируем изображение
+        result = _analyze_bytes(
+            image_bytes,
+            threshold=threshold,
+            simple=False,
+            unwanted_prompts=unwanted_prompts,
+            allowed_prompts=allowed_prompts
+        )
         result["image_downloaded"] = True
         result["source"] = "runpod"
+        result["blacklist_loaded"] = blacklist_url is not None and unwanted_prompts is not None
         return {"output": result}
     except (HTTPError, URLError) as err:
         return {"output": {"error": f"Download failed: {err}"}}
